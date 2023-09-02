@@ -1,7 +1,11 @@
+using System.Text;
 using AuthApplication.Data;
 using AuthApplication.Repository;
 using AuthApplication.Repository.Interfaces;
+using AuthApplication.Service;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +24,28 @@ builder.Services.AddDbContext<AuthContext>(opt =>
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 
+
+
+var tokenValidationParameters = new TokenValidationParameters
+{
+    ValidateIssuer = true,
+    ValidateAudience = true,
+    ValidateLifetime = true,
+    ValidateIssuerSigningKey = true,
+    ValidIssuer = "eu_mesmo",
+    ValidAudience = "auth_back",
+    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Key:TokenKey"] ?? string.Empty))
+};
+
+builder.Services.AddSingleton(tokenValidationParameters); // Adicione as opções de validação do token como um serviço Singleton
+
+builder.Services.AddSingleton<TokenService>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(opts =>
+{
+    opts.TokenValidationParameters = tokenValidationParameters;
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -33,6 +59,7 @@ configurationBuilder.Build();
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
